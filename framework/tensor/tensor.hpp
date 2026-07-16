@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <string>
 #include <ostream>
 
 
@@ -31,6 +32,27 @@ class Tensor {
                 strides_[i] = acc;
                 acc *= shape_[i];
             }
+        }
+
+        std::string dimParse(size_t dim, size_t offset, size_t stride) const{
+            std::string out = "[";
+            size_t dimSize = shape_[dim];
+            size_t innerStride = stride / dimSize;
+
+            bool isInner = (dim == shape_.size() - 1);
+            
+            for( size_t i = 0; i < dimSize; ++i){
+                if (isInner){
+                    out += std::to_string(data_[offset + i]);
+                } else {
+                    out += dimParse(dim+1, offset + i * innerStride, innerStride);
+                }
+                if (i + 1 < dimSize){
+                    out += isInner ? ", " : ",\n ";
+                }
+            }
+            out += "]";
+            return out;
         }
 
     public:
@@ -65,23 +87,26 @@ class Tensor {
 
         //Get data stored in tensor
         std::vector<T> data() const{
-            return this->data_;
+            return data_;
         };
 
         // Get size of tensor
         size_t size(){
             return data_.size();
         }
-    };
 
-    template <typename T>
-    std::ostream& operator<<(std::ostream& os, const Tensor<T>& t){
-        const auto& d = t.data();
-        os << "[";
-        for(size_t i = 0; i < d.size(); i++){
-            os << d[i];
-            if (i+1 < d.size()) os << ", ";
+        // Get vector describing shape of tensor
+        const std::vector<size_t>& shape() const {
+            return shape_;
         }
-        os << "]";
-        return os;
+
+        std::string toString() const {
+            if (shape_.empty()) return "[]";
+            return dimParse(0, 0, data_.size());
+        }
     };
+template <typename T>
+std::ostream& operator<<(std::ostream& os, const Tensor<T>& t) {
+    os << t.toString();
+    return os;
+};  
