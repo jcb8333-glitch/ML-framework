@@ -62,7 +62,11 @@ class Tensor {
             for(auto dim : shape_) size *= dim;
             data_.assign(size, initial_val);
             computeStrides();
-        };  
+        };
+        
+        static Tensor<T> clone(const Tensor<T>& t){
+            return t;
+        }
 
         // Indexing non-const
         template <typename... Idx>
