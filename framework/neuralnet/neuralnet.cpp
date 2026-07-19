@@ -2,18 +2,27 @@
 #include "../tensor/tensor.hpp"
 #include <iostream>
 
-class NeuralNet{
+class module{
     private:
 
     public:
+
+};
+
+class ReLU {
+
+    public:
+        ReLU(){}
+
         template <typename T>
-        Tensor<T> ReLU(Tensor<T> x){
+        Tensor<T> relu(Tensor<T> x){
             auto& data = x.data();
             for(size_t i = 0; i < x.size(); ++i){
                 if(data[i] < 0) data[i] = 0;
             }
             return x;
         }
+
 };
 
 int main(){
@@ -22,8 +31,5 @@ int main(){
     x(0,1) = -2;
     x(1,0) = 3;
     x(1,1) = -4;
-
-    NeuralNet nn = NeuralNet();
     std::cout << x << std::endl;
-    std::cout << nn.ReLU(x) << std::endl;
 }
