@@ -2,13 +2,6 @@
 #include "../tensor/tensor.hpp"
 #include <iostream>
 
-class module{
-    private:
-
-    public:
-
-};
-
 class ReLU {
 
     public:
