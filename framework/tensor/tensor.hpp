@@ -3,21 +3,15 @@
 #include <vector>
 #include <string>
 #include <ostream>
-
+#include <algorithm>
 
 enum class DType {
-    Float64,
-    Float32,
-    Float16,
-    Int64,
-    Int32,
-    Int16,
-    Bool,
-    Unknown
+    Float64, Float32, Float16,
+    Int64, Int32, Int16,
+    Bool, Unknown
 };
 
 template <typename T>
-
 class Tensor {
     private:
         DType dType;
@@ -39,36 +33,51 @@ class Tensor {
             size_t dimSize = shape_[dim];
             size_t innerStride = stride / dimSize;
 
-            bool isInner = (dim == shape_.size() - 1);
-            
-            for( size_t i = 0; i < dimSize; ++i){
-                if (isInner){
+            for (size_t i = 0; i < dimSize; ++i){
+                if (dim == shape_.size() - 1){
                     out += std::to_string(data_[offset + i]);
                 } else {
-                    out += dimParse(dim+1, offset + i * innerStride, innerStride);
+                    out += dimParse(dim + 1, offset + i * innerStride, innerStride);
                 }
-                if (i + 1 < dimSize){
-                    out += isInner ? ", " : ",\n ";
-                }
+                if (i + 1 < dimSize) out += ", ";
             }
             out += "]";
             return out;
         }
 
     public:
-        // Constructor
         Tensor(std::vector<size_t> shape, const T& initial_val = T()) : shape_(std::move(shape)){
             size_t size = 1;
             for(auto dim : shape_) size *= dim;
             data_.assign(size, initial_val);
             computeStrides();
-        };
-        
+        }
+
         static Tensor<T> clone(const Tensor<T>& t){
             return t;
         }
 
-        // Indexing non-const
+        static Tensor<T> transpose(const Tensor<T>& t){
+            std::vector<size_t> newShape = t.shape();
+            std::reverse(newShape.begin(), newShape.end());
+            Tensor<T> transposed(newShape);
+            for(size_t i = 0; i < t.size(); ++i){
+                std::vector<size_t> indices(t.shape().size());
+                size_t offset = i;
+                for(size_t j = 0; j < t.shape().size(); ++j){
+                    indices[j] = offset / t.strides_[j];
+                    offset %= t.strides_[j];
+                }
+                std::reverse(indices.begin(), indices.end());
+                size_t newOffset = 0;
+                for(size_t j = 0; j < indices.size(); ++j){
+                    newOffset += indices[j] * transposed.strides_[j];
+                }
+                transposed.data()[newOffset] = t.data()[i];
+            }
+            return transposed;
+        }
+
         template <typename... Idx>
         T& operator()(Idx... idx) {
             std::vector<size_t> indices{static_cast<size_t>(idx)...};
@@ -78,7 +87,7 @@ class Tensor {
             }
             return data_[offset];
         }
-        // Indexing const
+
         template <typename... Idx>
         const T& operator()(Idx... idx) const {
             std::vector<size_t> indices{static_cast<size_t>(idx)...};
@@ -89,17 +98,17 @@ class Tensor {
             return data_[offset];
         }
 
-        //Get data stored in tensor
-        std::vector<T> data() const{
+        std::vector<T>& data() {
             return data_;
-        };
+        }
+        const std::vector<T>& data() const {
+            return data_;
+        }
 
-        // Get size of tensor
-        size_t size(){
+        size_t size() const {
             return data_.size();
         }
 
-        // Get vector describing shape of tensor
         const std::vector<size_t>& shape() const {
             return shape_;
         }
@@ -108,9 +117,10 @@ class Tensor {
             if (shape_.empty()) return "[]";
             return dimParse(0, 0, data_.size());
         }
-    };
+};
+
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const Tensor<T>& t) {
-    os << t.toString();
+    os << "Tensor(" << t.toString() << ")";
     return os;
-};  
+}
