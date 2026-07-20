@@ -4,6 +4,7 @@
 #include <string>
 #include <ostream>
 #include <algorithm>
+#include <iostream>
 
 enum class DType {
     Float64, Float32, Float16,
@@ -57,25 +58,70 @@ class Tensor {
             return t;
         }
 
+        std::vector<T>& data() {
+            return data_;
+        }
+        const std::vector<T>& data() const {
+            return data_;
+        }
+
+        size_t size() const {
+            return data_.size();
+        }
+
+        const std::vector<size_t>& shape() const {
+            return shape_;
+        }
+
         static Tensor<T> transpose(const Tensor<T>& t){
             std::vector<size_t> newShape = t.shape();
             std::reverse(newShape.begin(), newShape.end());
             Tensor<T> transposed(newShape);
+
             for(size_t i = 0; i < t.size(); ++i){
                 std::vector<size_t> indices(t.shape().size());
                 size_t offset = i;
+
                 for(size_t j = 0; j < t.shape().size(); ++j){
                     indices[j] = offset / t.strides_[j];
                     offset %= t.strides_[j];
                 }
+
                 std::reverse(indices.begin(), indices.end());
                 size_t newOffset = 0;
+
                 for(size_t j = 0; j < indices.size(); ++j){
                     newOffset += indices[j] * transposed.strides_[j];
                 }
+
                 transposed.data()[newOffset] = t.data()[i];
             }
             return transposed;
+        }
+
+        static Tensor<T> multiply(const Tensor<T>& a, const Tensor<T>& b){
+            const auto& aShape = a.shape();
+            const auto& bShape = b.shape();
+
+            if(aShape.size() != 2 || bShape.size() != 2) throw std::invalid_argument("Tensor multiplication requires 2D Tensors");
+            if(aShape[1] != bShape[0]) throw std::invalid_argument("Incompatible shapes for multiplication");
+
+            size_t M = aShape[0];
+            size_t K = aShape[1];
+            size_t N = bShape[1];
+
+            Tensor<T> result({M, N});
+
+            for( size_t i = 0; i < M; ++i){
+                for (size_t j = 0; j < N; ++j){
+                    T sum = T();
+                    for(size_t k = 0; k < K; ++k){
+                        sum += a(i, k) * b(k, j);
+                    }
+                    result(i, j) = sum;
+                }
+            }
+            return result;
         }
 
         template <typename... Idx>
@@ -96,21 +142,6 @@ class Tensor {
                 offset += indices[i] * strides_[i];
             }
             return data_[offset];
-        }
-
-        std::vector<T>& data() {
-            return data_;
-        }
-        const std::vector<T>& data() const {
-            return data_;
-        }
-
-        size_t size() const {
-            return data_.size();
-        }
-
-        const std::vector<size_t>& shape() const {
-            return shape_;
         }
 
         std::string toString() const {
