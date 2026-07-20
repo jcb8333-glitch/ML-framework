@@ -4,7 +4,6 @@
 #include <string>
 #include <ostream>
 #include <algorithm>
-#include <iostream>
 
 enum class DType {
     Float64, Float32, Float16,
@@ -73,16 +72,31 @@ class Tensor {
             return shape_;
         }
 
+        Tensor<T> reshape(const std::vector<size_t>& newShape) const{
+            size_t  newSize = 1;
+            for(auto dim : newShape) newSize *= dim;
+
+            if (newSize != data_.size()) throw std::invalid_argument("Reshape: total element count must match new size");
+            Tensor<T> result(newShape);
+            result.data() = data_;
+            return result;
+        }
+
         static Tensor<T> transpose(const Tensor<T>& t){
+            if (t.shape().size() == 1) {
+                // Promote {n} directly to a column {n, 1}
+                return t.reshape({t.shape()[0], 1});
+            }
+
             std::vector<size_t> newShape = t.shape();
             std::reverse(newShape.begin(), newShape.end());
             Tensor<T> transposed(newShape);
 
-            for(size_t i = 0; i < t.size(); ++i){
+            for (size_t i = 0; i < t.size(); ++i){
                 std::vector<size_t> indices(t.shape().size());
                 size_t offset = i;
 
-                for(size_t j = 0; j < t.shape().size(); ++j){
+                for (size_t j = 0; j < t.shape().size(); ++j){
                     indices[j] = offset / t.strides_[j];
                     offset %= t.strides_[j];
                 }
@@ -90,7 +104,7 @@ class Tensor {
                 std::reverse(indices.begin(), indices.end());
                 size_t newOffset = 0;
 
-                for(size_t j = 0; j < indices.size(); ++j){
+                for (size_t j = 0; j < indices.size(); ++j){
                     newOffset += indices[j] * transposed.strides_[j];
                 }
 
@@ -103,23 +117,44 @@ class Tensor {
             const auto& aShape = a.shape();
             const auto& bShape = b.shape();
 
-            if(aShape.size() != 2 || bShape.size() != 2) throw std::invalid_argument("Tensor multiplication requires 2D Tensors");
-            if(aShape[1] != bShape[0]) throw std::invalid_argument("Incompatible shapes for multiplication");
+            if ((aShape.size() != 1 && aShape.size() != 2) ||
+                (bShape.size() != 1 && bShape.size() != 2))
+                throw std::invalid_argument("matmul supports only 1D or 2D tensors");
 
-            size_t M = aShape[0];
-            size_t K = aShape[1];
-            size_t N = bShape[1];
+            bool aWasVector = (aShape.size() == 1);
+            bool bWasVector = (bShape.size() == 1);
+
+            Tensor<T> aPromoted = aWasVector ? a.reshape({1, aShape[0]}) : a;
+            Tensor<T> bPromoted = bWasVector ? b.reshape({bShape[0], 1}) : b;
+
+            const auto& aShape2D = aPromoted.shape();
+            const auto& bShape2D = bPromoted.shape();
+
+            if (aShape2D[1] != bShape2D[0])
+                throw std::invalid_argument("Incompatible shapes for multiplication");
+
+            size_t M = aShape2D[0];
+            size_t K = aShape2D[1];
+            size_t N = bShape2D[1];
 
             Tensor<T> result({M, N});
 
-            for( size_t i = 0; i < M; ++i){
+            for (size_t i = 0; i < M; ++i){
                 for (size_t j = 0; j < N; ++j){
                     T sum = T();
-                    for(size_t k = 0; k < K; ++k){
-                        sum += a(i, k) * b(k, j);
+                    for (size_t k = 0; k < K; ++k){
+                        sum += aPromoted(i, k) * bPromoted(k, j);
                     }
                     result(i, j) = sum;
                 }
+            }
+
+            if (aWasVector && bWasVector) {
+                return result.reshape({});
+            } else if (aWasVector) {
+                return result.reshape({N});
+            } else if (bWasVector) {
+                return result.reshape({M});
             }
             return result;
         }
