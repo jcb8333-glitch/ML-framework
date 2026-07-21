@@ -1,41 +1,38 @@
+#pragma once
+
 #include <vector>
 #include "../tensor/tensor.hpp"
 #include <iostream>
 
-class Model {
-    private:
-        Tensor<double> data;
-};
-
+template <typename T>
 class Linear {
 
     private:
-        Tensor<double> weights_;
-        double bias_;
+        Tensor<T> weights_;
+        T bias_;
 
     public:
         Linear(size_t inFeats, size_t outFeats, bool bias=true)
-            : weights_({inFeats}, 0.0), bias_(0.5) {
+            : weights_({inFeats}, T(0.0)), bias_(T(0.5)) {
         }
 
-        template <typename T>
         Tensor<T> activate(Tensor<T>& x){
             Tensor<T> y = Tensor<T>::multiply(x, Tensor<T>::transpose(weights_));
-            auto& d = y.data();
+            auto& data = y.data();
             for(size_t i = 0; i < y.size(); ++i){
-                d[i] += bias_;
+                data[i] += bias_;
             }
             return y;
         }
 
 };
 
+template <typename T>
 class ReLU {
 
     public:
         ReLU(){}
 
-        template <typename T>
         Tensor<T> relu(Tensor<T> x){
             auto& data = x.data();
             for(size_t i = 0; i < x.size(); ++i){
@@ -45,7 +42,3 @@ class ReLU {
         }
 
 };
-
-int main(){
-
-}

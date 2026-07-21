@@ -175,6 +175,17 @@ class Tensor {
             return result;
         }
 
+        static Tensor<T> mean(const Tensor<T>& t){
+            Tensor<T> result = Tensor<T>({1},0);
+            const std::vector<T>& data = t.data();
+
+            for(size_t i = 0; i < data.size(); ++i){
+                result(0) += data[i];
+            }
+            result(0) /= t.size();
+            return result;
+        }
+
         template <typename... Idx>
         T& operator()(Idx... idx) {
             std::vector<size_t> indices{static_cast<size_t>(idx)...};
